@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Cachorro en acción 🐶</title>
+    <style>
+        body { font-family: 'Arial', sans-serif; background: #eef2f3; text-align: center; padding: 20px; margin: 0; }
+        #main-container { width: 600px; margin: 0 auto; background: white; border: 5px solid #333; border-radius: 10px; overflow: hidden; min-height: 400px; position: relative; }
+        #screen-msg { display: block; padding: 30px; background: #1a1a1a; color: white; min-height: 400px; box-sizing: border-box; }
+        #screen-game { display: none; height: 400px; position: relative; background: white; }
+        #dog { font-size: 50px; position: absolute; top: 170px; left: 270px; transition: 0.5s; z-index: 10; pointer-events: none; }
+        #patio { width: 100px; height: 100%; background: #d4edda; position: absolute; right: 0; display: flex; align-items: center; justify-content: center; border-left: 3px dashed #28a745; cursor: pointer; font-weight: bold; }
+        .corner { width: 80px; height: 80px; position: absolute; bottom: 0; left: 0; background: #e9ecef; border-top-right-radius: 40px; cursor: pointer; }
+        .header-info { background: #333; color: white; padding: 10px; font-weight: bold; display: flex; justify-content: space-around; }
+        .controls { margin-top: 20px; }
+        .btn { padding: 15px 25px; cursor: pointer; border-radius: 8px; border: none; font-weight: bold; font-size: 16px; transition: 0.2s; }
+        .btn:hover { transform: scale(1.05); }
+        .btn-start { background: #28a745; color: white; margin-top: 20px; }
+        .fx { position: absolute; font-size: 40px; animation: float 1s forwards; z-index: 100; pointer-events: none; }
+        @keyframes float { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-60px); } }
+    </style>
+</head>
+<body>
+
+    <h1>Cachorro en acción 🐶</h1>
+
+    <div id="main-container">
+        <div id="screen-msg">
+            <h2 id="msg-title">¡Bienvenido a "Cachorro en acción 🐶"!</h2>
+            <p id="msg-body" style="text-align: left; line-height: 1.5; font-size: 14px;">
+                En este juego, debes enseñarle a tu cachorro cómo ir al baño en el patio usando el condicionamiento operante. El objetivo es que tu cachorro vaya al baño con solo oír un chasquido. 
+                <br><br>
+                El primer paso es que deje de ir al baño en la esquina de tu casa y aprenda a salir al patio. Aprieta el patio o la esquina y usa un reforzador o un castigo. ¡Buena suerte!
+            </p>
+            <button id="btn-action" class="btn btn-start" onclick="botonEntendido()">ENTENDIDO</button>
+        </div>
+
+        <div id="screen-game">
+            <div class="header-info">
+                <span>Rondas: <span id="ui-wins">0/4</span></span>
+                <span>Etapa: <span id="ui-stage">1</span></span>
+                <span>Tiempo: <span id="ui-time">10</span>s</span>
+            </div>
+            <div id="patio" onclick="clicLugar('patio')">PATIO</div>
+            <div id="esquina" class="corner" onclick="clicLugar('esquina')">ESQUINA</div>
+            <div id="dog">🐶</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn" style="background: #ffc107;" onclick="sonarChasquido()">🔊 CHASQUIDO</button>
+        <button class="btn" style="background: #007bff; color: white;" onclick="toggleMenuHablar()">🗣️ HABLARLE</button>
+    </div>
+
+    <div id="menu-hablar" style="display:none; margin-top: 15px;">
+        <button class="btn" style="background: #94d3a2; margin-right: 10px;" onclick="reaccionar(true)">Hablar Bonito ✨</button>
+        <button class="btn" style="background: #f89d9d;" onclick="reaccionar(false)">Gritar 🥺</button>
+    </div>
+
+    <p id="status-text" style="color: #666; font-style: italic; margin-top: 15px;">Haz clic en el botón verde para empezar.</p>
+
+    <script>
+        let time = 10, stage = 1, wins = 0, pos = 'sala', isCond = false, reinforced = false;
+        let extCounter = 0, s1Prog = 0, timer = null, cornerTime = 0, isScolded = false;
+        let s1Goal = Math.floor(Math.random() * 3) + 2;
+        let seHaResistido = false;
+        
+        let comboCount = 0; 
+        let comboGoal = Math.floor(Math.random() * 4) + 2; 
+        let chasquidoPresionadoEnPatio = false;
+        let movidoPorChasquido = false; 
+
+        function botonEntendido() {
+            if (document.getElementById('btn-action').innerText === "VOLVER AL INICIO") {
+                reiniciarTodoElJuego();
+                return;
+            }
+            document.getElementById('screen-msg').style.display = 'none';
+            document.getElementById('screen-game').style.display = 'block';
+            reiniciarParametrosRonda();
+            iniciarReloj();
+        }
+
+        function reiniciarTodoElJuego() {
+            time = 10; stage = 1; wins = 0; pos = 'sala'; isCond = false;
+            reinforced = false; extCounter = 0; s1Prog = 0; comboCount = 0;
+            document.getElementById('msg-title').innerText = '¡Bienvenido a "Cachorro en acción 🐶"!';
+            document.getElementById('msg-body').innerHTML = 'En este juego, debes enseñarle a tu cachorro cómo ir al baño en el patio usando el condicionamiento operante. El objetivo es que tu cachorro vaya al baño con solo oír un chasquido. <br><br> El primer paso es que deje de ir al baño en la esquina de tu casa y aprenda a salir al patio. Aprieta el patio o la esquina y usa un reforzador o un castigo. ¡Buena suerte!';
+            document.getElementById('btn-action').innerText = "ENTENDIDO";
+            document.getElementById('status-text').innerText = "Haz clic en el botón verde para empezar.";
+            actualizarUI();
+        }
+
+        function mostrarMensaje(titulo, cuerpo, botonTxt = "ENTENDIDO") {
+            clearInterval(timer);
+            document.getElementById('msg-title').innerText = titulo;
+            document.getElementById('msg-body').innerText = cuerpo;
+            document.getElementById('btn-action').innerText = botonTxt;
+            document.getElementById('screen-game').style.display = 'none';
+            document.getElementById('screen-msg').style.display = 'block';
+        }
+
+        function iniciarReloj() {
+            if(timer) clearInterval(timer);
+            timer = setInterval(() => {
+                time--;
+                document.getElementById('ui-time').innerText = time;
+                
+                if(stage === 1 && pos === 'sala' && time === 7 && Math.random() > 0.5) {
+                    moverPerro('esquina');
+                    document.getElementById('status-text').innerText = "¡El perro se fue solo a la esquina!";
+                }
+
+                if(pos === 'esquina' && !isScolded) {
+                    cornerTime++;
+                    if(cornerTime >= 5) terminarRonda();
+                }
+
+                if(time <= 0) terminarRonda();
+            }, 1000);
+        }
+
+        function clicLugar(destino) {
+            if (Math.random() < 0.3) {
+                crearEfecto('💢');
+                seHaResistido = true;
+                document.getElementById('status-text').innerText = "El perro se resiste a moverse.";
+                return;
+            }
+            movidoPorChasquido = false; 
+            moverPerro(destino);
+        }
+
+        function moverPerro(destino) {
+            const dog = document.getElementById('dog');
+            seHaResistido = false;
+            if(destino === 'patio') {
+                dog.style.left = '480px'; dog.style.top = '170px';
+                pos = 'patio';
+            } else {
+                dog.style.left = '20px'; dog.style.top = '300px';
+                pos = 'esquina'; cornerTime = 0; isScolded = false;
+            }
+        }
+
+        function sonarChasquido() {
+            if(stage === 2) {
+                if(pos === 'patio') {
+                    chasquidoPresionadoEnPatio = true;
+                    crearEfecto('🎧');
+                    document.getElementById('status-text').innerText = "Chasquido emitido en el patio.";
+                } else if(isCond) {
+                    if(Math.random() < 0.2) { crearEfecto('💢'); seHaResistido = true; return; }
+                    movidoPorChasquido = true; 
+                    moverPerro('patio');
+                    document.getElementById('status-text').innerText = "¡El perro obedeció al sonido!";
+                }
+            }
+        }
+
+        function toggleMenuHablar() {
+            const m = document.getElementById('menu-hablar');
+            m.style.display = (m.style.display === 'none') ? 'block' : 'none';
+        }
+
+        function reaccionar(esPositivo) {
+            document.getElementById('menu-hablar').style.display = 'none';
+            if(esPositivo) {
+                crearEfecto('✨');
+                if(pos === 'patio') {
+                    reinforced = true;
+                    
+                    if(stage === 1) {
+                        s1Prog++;
+                        if(s1Prog >= s1Goal) { 
+                            stage = 2;
+                            mostrarMensaje("¡Felicidades!", "Tu cachorro ahora sabe salir al patio solo, pero falta que lo asocie con el chasquido. Haz el combo: Patio + Chasquido + Hablar Bonito.");
+                            return;
+                        }
+                    } 
+                    else if (stage === 2 && !isCond) {
+                        if(chasquidoPresionadoEnPatio) {
+                            comboCount++;
+                            document.getElementById('status-text').innerText = `Combo asociación: ${comboCount}/${comboGoal}`;
+                            if(comboCount >= comboGoal) {
+                                isCond = true;
+                                document.getElementById('status-text').innerText = "¡Chasquido asociado! Refuérzalo.";
+                            }
+                        }
+                    }
+                    terminarRonda();
+                }
+            } else {
+                crearEfecto('🥺');
+                if(pos === 'esquina' || (pos === 'sala' && seHaResistido)) {
+                    isScolded = true;
+                    document.getElementById('status-text').innerText = "¡Castigo aplicado correctamente!";
+                    setTimeout(reiniciarRonda, 1000);
+                }
+            }
+        }
+
+        function terminarRonda() {
+            clearInterval(timer);
+            crearEfecto('💩');
+            setTimeout(() => {
+                if(pos === 'patio') {
+                    if(stage === 2 && isCond && reinforced) { 
+                        if(movidoPorChasquido) {
+                            wins++; 
+                            extCounter = 0; 
+                        } else {
+                            document.getElementById('status-text').innerText = "Bien, pero no cuenta: debió ir por el chasquido.";
+                        }
+                    } else if(stage === 2 && isCond) {
+                        wins = 0; 
+                    }
+                    
+                    if(wins >= 4) {
+                        mostrarMensaje("🏆 ¡VICTORIA!", "¡Felicidades! Lograste condicionar al cachorro. Ahora responde perfectamente al chasquido.", "VOLVER AL INICIO");
+                    } else { 
+                        reiniciarRonda(); 
+                    }
+                } else {
+                    if (seHaResistido && pos === 'sala') {
+                        mostrarMensaje("Oh no...", "El perro hizo sus necesidades en la sala. Si no se quiere mover, puedes probar castigarlo por eso.");
+                    } else if(stage === 2) {
+                        wins = 0;
+                        mostrarMensaje("Oh no...", "Hizo en la sala. En la Etapa 2 debes ser preciso. ¡Inténtalo de nuevo!");
+                    } else {
+                        mostrarMensaje("Oh no...", "Tu perro hizo sus necesidades en la esquina. ¿Cómo lograr que no lo haga ahí? (Pista: Intenta gritarle cuando esté en la esquina).");
+                    }
+                    wins = 0;
+                }
+            }, 800);
+        }
+
+        function reiniciarParametrosRonda() {
+            time = 10; pos = 'sala'; cornerTime = 0; isScolded = false; seHaResistido = false;
+            chasquidoPresionadoEnPatio = false; movidoPorChasquido = false;
+            
+            if(isCond && !reinforced) {
+                extCounter++;
+                if(extCounter >= 2) { 
+                    isCond = false; wins = 0; comboCount = 0;
+                    document.getElementById('status-text').innerText = "¡Conducta extinguida por falta de refuerzo!"; 
+                }
+            }
+            
+            reinforced = false;
+            const dog = document.getElementById('dog');
+            dog.style.left = '270px'; dog.style.top = '170px';
+            actualizarUI();
+        }
+
+        function reiniciarRonda() {
+            reiniciarParametrosRonda();
+            iniciarReloj();
+        }
+
+        function actualizarUI() {
+            document.getElementById('ui-wins').innerText = wins + "/4";
+            document.getElementById('ui-stage').innerText = stage;
+            document.getElementById('ui-time').innerText = time;
+        }
+
+        function crearEfecto(emoji) {
+            const dog = document.getElementById('dog');
+            const fx = document.createElement('div');
+            fx.className = 'fx';
+            fx.innerText = emoji;
+            fx.style.left = (dog.offsetLeft + 10) + 'px';
+            fx.style.top = (dog.offsetTop - 20) + 'px';
+            document.getElementById('main-container').appendChild(fx);
+            setTimeout(() => fx.remove(), 1000);
+        }
+    </script>
+</body>
+</html>
+
